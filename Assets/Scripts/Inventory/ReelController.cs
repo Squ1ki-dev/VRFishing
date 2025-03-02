@@ -1,47 +1,70 @@
+using Unity.VRTemplate;
 using UnityEngine;
-using UnityEngine.Events;
+using UnityEngine.XR;
+using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 public class ReelController : MonoBehaviour
 {
-	[Header("Events")] 
-	[SerializeField] private UnityEvent onStartReeling;
-	[SerializeField] private UnityEvent onStopReeling;
-	
-	[SerializeField] private Bait bait;
-	
-	[Header("Settings")]
-	[SerializeField, Min(0)] private float rotationSpeed = 360f;
-	
-	private bool _isReeling;
+    [Header("XR Knob Reference")]
+    [SerializeField] private XRSimpleInteractable reelKnob;
+    [SerializeField] private XRNode controllerNode = XRNode.LeftHand;
 
-	private void Update()
-	{
-		if (_isReeling)
-		{
-			RotateReel();
-		}
-	}
+    [Header("Settings")]
+    [SerializeField] private float maxRotationSpeed = 720f;
 
-	public void StartReeling()
-	{
-		if (!bait.IsInWater) return;
-		
-		Debug.Log("Start reeling");
-		
-		_isReeling = true;
-		onStartReeling?.Invoke();
-	}
+    private InputDevice _rightController;
+    private bool _isGrabbed;
+    private float _currentReelSpeed;
 
-	public void StopReeling()
-	{
-		Debug.Log("Stop reeling");
-		
-		_isReeling = false;
-		onStopReeling?.Invoke();
-	}
+    private void Start()
+    {
+        _rightController = InputDevices.GetDeviceAtXRNode(controllerNode);
+    }
 
-	private void RotateReel()
-	{
-		transform.Rotate(Vector3.right * (rotationSpeed * Time.deltaTime));
-	}
+    private void OnEnable()
+    {
+        reelKnob.selectEntered.AddListener(OnGrab);
+        reelKnob.selectExited.AddListener(OnRelease);
+    }
+
+    private void OnDisable()
+    {
+        reelKnob.selectEntered.RemoveListener(OnGrab);
+        reelKnob.selectExited.RemoveListener(OnRelease);
+    }
+
+    private void Update()
+    {
+        _rightController = InputDevices.GetDeviceAtXRNode(controllerNode);
+
+        if (_rightController.TryGetFeatureValue(CommonUsages.gripButton, out bool gripPressed) && gripPressed && _isGrabbed)
+        {
+            AdjustReelSpeed();
+            RotateReel();
+        }
+        else
+            _currentReelSpeed = 0f;
+    }
+
+    private void OnGrab(SelectEnterEventArgs args)
+    {
+        _isGrabbed = true;
+    }
+
+    private void OnRelease(SelectExitEventArgs args)
+    {
+        _isGrabbed = false;
+        _currentReelSpeed = 0f;
+    }
+
+    private void AdjustReelSpeed()
+    {
+        _currentReelSpeed = 0.5f * maxRotationSpeed;
+    }
+
+    private void RotateReel()
+    {
+        transform.Rotate(Vector3.right * (_currentReelSpeed * Time.deltaTime));
+    }
 }
