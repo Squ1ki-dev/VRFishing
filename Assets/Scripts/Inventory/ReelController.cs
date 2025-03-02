@@ -58,13 +58,7 @@ public class ReelController : MonoBehaviour
         _currentReelSpeed = 0f;
     }
 
-    private void AdjustReelSpeed()
-    {
-        _currentReelSpeed = 0.5f * maxRotationSpeed;
-    }
+    private void AdjustReelSpeed() => _currentReelSpeed = 0.5f * maxRotationSpeed;
 
-    private void RotateReel()
-    {
-        transform.Rotate(Vector3.right * (_currentReelSpeed * Time.deltaTime));
-    }
+    private void RotateReel() => transform.Rotate(Vector3.right * (_currentReelSpeed * Time.deltaTime));
 }
