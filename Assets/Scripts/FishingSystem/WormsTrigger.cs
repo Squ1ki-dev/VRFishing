@@ -17,12 +17,9 @@ namespace Code.Logic.Fishing
             Debug.Log("[WormsTrigger] Initialized InputHandler.");
         }
 
-        private void Update()
-        {
-            _inputHandler.ValidateInputDevice();
-            Debug.Log($"[WormsTrigger] Grip Pressed: {_inputHandler.IsGripPressed()} | Trigger Pressed: {_inputHandler.IsTriggerPressed()}");
-        }
-        
+        private void Update() => _inputHandler.ValidateInputDevice();
+
+
         private void OnTriggerEnter(Collider other)
         {
             HandTransition handTransition = other.GetComponent<HandTransition>();

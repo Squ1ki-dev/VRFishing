@@ -5,14 +5,13 @@ namespace Code.Logic.Fishing
 {
     public class HookFishFoodContainerTrigger : MonoBehaviour
     {
-        [SerializeField] private Transform _hookContainer; 
+        [SerializeField] private Transform _hookContainer;
 
         private AudioSource _audioSource;
         private GameObject _currentFishFood;
         private GameObject _currentHookedFish;
 
         public event Action OnWormHooked;
-
         public bool HookIsEmpty => _currentFishFood == null;
 
         private void Awake()
@@ -22,53 +21,51 @@ namespace Code.Logic.Fishing
 
         public void CleanContainerFromBite()
         {
-            if (_currentFishFood != null)
-            {
-                Destroy(_currentFishFood);
-                _currentFishFood = null;
-            }
+            if (_currentFishFood == null) return;
+            
+            Destroy(_currentFishFood);
+            _currentFishFood = null;
         }
 
-        public void SetupCurrentHookedFish(GameObject fish)
-        {
-            _currentHookedFish = fish;
-        }
+        public void SetupCurrentHookedFish(GameObject fish) => _currentHookedFish = fish;
 
         private void OnTriggerEnter(Collider other)
         {
-            HandTransition handTransition = other.GetComponent<HandTransition>();
+            if (!other.TryGetComponent(out HandTransition handTransition)) return;
 
-            if (handTransition == null)
-                return;
-
-            //Worm connection
             if (handTransition.IsContainerFull && HookIsEmpty)
-            {
-                ITransitable wormInstance;
-                handTransition.EndTransition(out wormInstance);
-                if (wormInstance != null)
-                {
-                    if (wormInstance is MonoBehaviour mono)
-                    {
-                        mono.transform.position = _hookContainer.position;
-                        mono.transform.SetParent(_hookContainer);
-                        _currentFishFood = mono.gameObject;
-                        OnWormHooked?.Invoke();
-                    }
-                }
-            }
+                HandleWormHooking(handTransition);
+            else if (!handTransition.IsContainerFull && _currentHookedFish != null)
+                HandleFishToHand(handTransition);
 
-            //Fish to hand 
-            if (!handTransition.IsContainerFull && _currentHookedFish != null)
-            {
-                ITransitable fishInstance = _currentHookedFish.GetComponent<ITransitable>();
-                handTransition.BeginTransition(fishInstance);
-                Debug.Log($"fish in hand");
+            PlayAudio();
+        }
 
-            }
+        private void HandleWormHooking(HandTransition handTransition)
+        {
+            handTransition.EndTransition(out ITransitable wormInstance);
+            if (wormInstance is not MonoBehaviour mono) return;
             
-            if (_audioSource != null && !_audioSource.isPlaying)
-                _audioSource.Play();
+            mono.transform.SetParent(_hookContainer);
+            mono.transform.localPosition = Vector3.zero; // Reset local position to align with the hook
+            _currentFishFood = mono.gameObject;
+
+            OnWormHooked?.Invoke();
+        }
+
+        private void HandleFishToHand(HandTransition handTransition)
+        {
+            if (_currentHookedFish.TryGetComponent(out ITransitable fishInstance))
+            {
+                handTransition.BeginTransition(fishInstance);
+                Debug.Log("Fish in hand");
+            }
+        }
+
+        private void PlayAudio()
+        {
+            if (_audioSource == null || _audioSource.isPlaying) return;
+            _audioSource.Play();
         }
     }
 }
