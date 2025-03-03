@@ -1,3 +1,4 @@
+using System;
 using Unity.VRTemplate;
 using UnityEngine;
 using UnityEngine.XR;
@@ -14,6 +15,8 @@ namespace Code.Gameplay.Inventory
 
         [Header("Settings")]
         [SerializeField] private float maxRotationSpeed = 720f;
+
+        public event Action OnReelRotating;
 
         private InputDevice _rightController;
         private bool _isGrabbed;
@@ -41,6 +44,7 @@ namespace Code.Gameplay.Inventory
             {
                 AdjustReelSpeed();
                 RotateReel();
+                OnReelRotating?.Invoke();
             }
             else
                 _currentReelSpeed = 0f;

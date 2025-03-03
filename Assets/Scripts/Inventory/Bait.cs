@@ -1,9 +1,6 @@
-using System;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.Serialization;
-using Code.Services.Input;
 
 namespace Code.Gameplay.Inventory
 {
@@ -12,100 +9,56 @@ namespace Code.Gameplay.Inventory
         public bool IsInWater { get; private set; }
 
         [Header("Events")]
-        [SerializeField] private UnityEvent onBaitEnteredWater;
-        [SerializeField] private UnityEvent<Transform> onFishBite;
-
-        [Header("Effects")]
-        [SerializeField] private ParticleSystem splashEffect;
-        [SerializeField] private ParticleSystem pullingEffect;
+        public UnityEvent onBaitEnteredWater;
+        public UnityEvent<Transform> onFishBite;
 
         [Header("Settings")]
         [SerializeField] private Transform targetPoint;
         [SerializeField, Min(0)] private float moveSpeed = 2f;
         [SerializeField] private float yUnderWaterOffset = 0.2f;
-        [SerializeField] private float maxThrowPower = 10f;
-        [SerializeField] private float minThrowPower = 2f;
-        [SerializeField] private float angleInfluence = 0.5f;
+
+        [SerializeField] private ReelController _reelController;
 
         private Rigidbody _rigidbody;
         private Transform _defaultParent;
         private Vector3 _defaultPosition;
-        private Vector3 _lastVelocity;
-        private IInputHandler _inputHandler;
 
-        private bool _isHolding;
         private bool _isPulling;
-        private float _holdStartTime;
 
         private void Awake()
         {
             _rigidbody = GetComponent<Rigidbody>();
-            _inputHandler = new InputHandler();
         }
 
         private void Start()
         {
             CacheDefaults();
-            _inputHandler.InitializeInputDevice();
         }
 
-        private void Update()
+        private void OnEnable()
         {
-            _inputHandler.ValidateInputDevice();
-
-            if (_inputHandler.IsTriggerPressed())
-                StartHolding();
-            else if (_isHolding)
-                ThrowBait();
+            if (_reelController != null)
+                _reelController.OnReelRotating += ResetBait;
         }
 
-        private void FixedUpdate()
+        private void OnDisable()
         {
-            if (_isPulling)
-                MoveToTarget();
-            else if (_isHolding)
-                CaptureControllerVelocity();
-            else
-                ApplyAirResistance();
+            if (_reelController != null)
+                _reelController.OnReelRotating -= ResetBait;
         }
 
-        private void ApplyAirResistance() => _rigidbody.velocity *= 0.99f;
-
-        private void StartHolding()
+        public void Throw(Vector3 direction, float power)
         {
-            if (_isHolding) return;
-
-            _isHolding = true;
-            transform.SetParent(null);
-            _holdStartTime = Time.time;
-        }
-
-        private void ThrowBait()
-        {
-            _isHolding = false;
             _rigidbody.isKinematic = false;
-            _rigidbody.velocity = CalculateThrowDirection() * CalculateThrowPower();
+            _rigidbody.velocity = direction * power;
             WaitForFish().Forget();
         }
-
-        private float CalculateThrowPower() =>
-            Mathf.Clamp(_lastVelocity.magnitude * 2f, minThrowPower, maxThrowPower);
-
-        private Vector3 CalculateThrowDirection()
-        {
-            Vector3 controllerForward = _inputHandler.GetControllerForward();
-            return Vector3.Lerp(_lastVelocity.normalized, controllerForward, angleInfluence).normalized;
-        }
-
-        private void CaptureControllerVelocity() =>
-            _lastVelocity = _inputHandler.GetControllerVelocity();
 
         public void ResetBait()
         {
             _isPulling = false;
             IsInWater = false;
             _rigidbody.isKinematic = true;
-            pullingEffect.Stop();
             RestoreDefaultTransformAfterDelay().Forget();
         }
 
@@ -121,13 +74,9 @@ namespace Code.Gameplay.Inventory
             transform.localPosition = _defaultPosition;
         }
 
-        private void MoveToTarget() =>
-            transform.position = Vector3.MoveTowards(transform.position, targetPoint.position, moveSpeed * Time.fixedDeltaTime);
-
         private async UniTaskVoid WaitForFish()
         {
             await UniTask.Delay(UnityEngine.Random.Range(5000, 10000));
-            splashEffect.Play();
             onFishBite?.Invoke(transform);
         }
 
@@ -141,7 +90,6 @@ namespace Code.Gameplay.Inventory
         {
             _rigidbody.isKinematic = true;
             AdjustPositionForWater();
-            splashEffect.Play();
             onBaitEnteredWater?.Invoke();
         }
 
