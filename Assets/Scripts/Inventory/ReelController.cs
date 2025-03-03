@@ -17,10 +17,7 @@ public class ReelController : MonoBehaviour
     private bool _isGrabbed;
     private float _currentReelSpeed;
 
-    private void Start()
-    {
-        _rightController = InputDevices.GetDeviceAtXRNode(controllerNode);
-    }
+    private void Start() => _rightController = InputDevices.GetDeviceAtXRNode(controllerNode);
 
     private void OnEnable()
     {
@@ -47,10 +44,7 @@ public class ReelController : MonoBehaviour
             _currentReelSpeed = 0f;
     }
 
-    private void OnGrab(SelectEnterEventArgs args)
-    {
-        _isGrabbed = true;
-    }
+    private void OnGrab(SelectEnterEventArgs args) => _isGrabbed = true;
 
     private void OnRelease(SelectExitEventArgs args)
     {
@@ -60,5 +54,5 @@ public class ReelController : MonoBehaviour
 
     private void AdjustReelSpeed() => _currentReelSpeed = 0.5f * maxRotationSpeed;
 
-    private void RotateReel() => transform.Rotate(Vector3.right * (_currentReelSpeed * Time.deltaTime));
+    private void RotateReel() => transform.Rotate(Vector3.right * (-_currentReelSpeed * Time.deltaTime));
 }

@@ -16,11 +16,11 @@ public class Bait : MonoBehaviour
 
     [Header("Settings")]
     [SerializeField] private Transform targetPoint;
-    [SerializeField, Min(0)] private float moveSpeed = 3f;
-    [SerializeField] private float yUnderWaterOffset = 0.1f;
-    [SerializeField] private float maxThrowPower = 20f;
-    [SerializeField] private float minThrowPower = 5f;
-    [SerializeField] private float angleInfluence = 0.5f;
+    [SerializeField, Min(0)] private float moveSpeed;
+    [SerializeField] private float yUnderWaterOffset;
+    [SerializeField] private float maxThrowPower;
+    [SerializeField] private float minThrowPower;
+    [SerializeField] private float angleInfluence;
 
     private Rigidbody _rigidbody;
     private Transform _defaultParent;
@@ -31,10 +31,7 @@ public class Bait : MonoBehaviour
     
     private InputDevice _rightController;
 
-    private void Awake()
-    {
-        _rigidbody = GetComponent<Rigidbody>();
-    }
+    private void Awake() => _rigidbody = GetComponent<Rigidbody>();
 
     private void Start()
     {
@@ -73,10 +70,7 @@ public class Bait : MonoBehaviour
             ApplyAirResistance();
     }
 
-    private void ApplyAirResistance()
-    {
-        _rigidbody.velocity *= 0.99f;
-    }
+    private void ApplyAirResistance() => _rigidbody.velocity *= 0.99f;
 
     private void StartHolding()
     {
@@ -95,7 +89,6 @@ public class Bait : MonoBehaviour
         
         Vector3 throwDirection = CalculateThrowDirection();
         _rigidbody.velocity = throwDirection * throwPower;
-        _rigidbody.angularVelocity = _lastAngularVelocity;
 
         StartCoroutine(WaitForFish());
     }
@@ -112,7 +105,6 @@ public class Bait : MonoBehaviour
         
         return throwDirection;
     }
-
 
     public void Init()
     {
