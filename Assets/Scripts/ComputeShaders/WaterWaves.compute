@@ -1,0 +1,57 @@
+#pragma kernel CSMain
+
+RWStructuredBuffer<float3> _Vertices;
+RWStructuredBuffer<float> _Result;
+RWStructuredBuffer<float3> _DebugBuffer;
+
+cbuffer Params
+{
+    float _Time;
+    float _WaveSpeed;
+    float _WaveHeight;
+    float _WaveDirectionX;
+    float _WaveDirectionZ;
+    int _InteractorsCount;
+    float _CircleWaveAmplitude;
+    float _CircleWaveDamping;
+    float _CircleWaveRadius;
+    float _CircleWaveLength;
+    float _CircleWaveSpeed;
+    int _ClosestVertexID;
+
+}
+
+[numthreads(64, 1, 1)]
+void CSMain(uint id : SV_DispatchThreadID)
+{
+    float3 vertex = _Vertices[id];
+    float3 closestVertex = _Vertices[_ClosestVertexID];
+
+    if (id == 0) 
+    {
+        _DebugBuffer[0] = closestVertex;
+    }
+
+    float wave = sin(vertex.x * _WaveDirectionX + vertex.z * _WaveDirectionZ + _Time * _WaveSpeed) * _WaveHeight;
+
+    if (_InteractorsCount > 0 && _ClosestVertexID >= 0)
+    {
+        float2 centerXZ = closestVertex.xz;
+        float2 vertexXZ = vertex.xz;
+        float distance = length(vertexXZ - centerXZ);
+
+        if (id == 0)
+        {
+            _DebugBuffer[1] = float3(vertexXZ.x, vertexXZ.y, distance);
+        }
+
+        if (distance < _CircleWaveRadius)
+        {
+            float attenuation = exp(-distance * _CircleWaveDamping);
+            float waveFactor = sin((distance / _CircleWaveLength) * 20.0 - _Time * _CircleWaveSpeed) * attenuation / (1.0 + distance * 10.0);
+            wave += waveFactor * _CircleWaveAmplitude  * (2.0 - distance / _CircleWaveRadius);
+        }
+    }
+
+    _Result[id] = wave;
+}

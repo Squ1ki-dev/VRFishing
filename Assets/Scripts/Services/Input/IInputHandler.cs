@@ -8,6 +8,7 @@ namespace Code.Services.Input
     Vector3 GetControllerVelocity();
     void InitializeInputDevice();
     bool IsTriggerPressed();
+    bool IsGripPressed();
     void ValidateInputDevice();
 }
 }
