@@ -25,6 +25,6 @@ namespace Code.Gameplay.Inventory
         }
 
         private void PlaySplashEffect() => splashEffect.Play();
-        private void PlayPullingEffect(Transform _) => pullingEffect.Play();
+        private void PlayPullingEffect(Transform transform) => pullingEffect.Play();
     }
 }

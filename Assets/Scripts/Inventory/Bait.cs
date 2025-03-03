@@ -7,6 +7,7 @@ namespace Code.Gameplay.Inventory
     public class Bait : MonoBehaviour
     {
         public bool IsInWater { get; private set; }
+        private bool _isPulling;
 
         [Header("Events")]
         public UnityEvent onBaitEnteredWater;
@@ -22,8 +23,6 @@ namespace Code.Gameplay.Inventory
         private Rigidbody _rigidbody;
         private Transform _defaultParent;
         private Vector3 _defaultPosition;
-
-        private bool _isPulling;
 
         private void Awake()
         {

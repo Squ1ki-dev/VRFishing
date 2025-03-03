@@ -3,16 +3,16 @@ using UnityEngine;
 
 public class FishSpawner : MonoBehaviour
 {
-    [SerializeField] private List<FishBehavior> fishList;
+    [SerializeField] private List<FishBehaviour> fishList;
     
     public void SpawnFish(Transform hook)
     {
-        FishBehavior currentFish = Instantiate(GetRandomFish());
+        FishBehaviour currentFish = Instantiate(GetRandomFish());
         
         currentFish.Catch(hook);
     }
     
-    private FishBehavior GetRandomFish()
+    private FishBehaviour GetRandomFish()
     {
         return fishList[Random.Range(0, fishList.Count)];
     }

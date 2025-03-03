@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.Events;
 
-public class FishBehavior : MonoBehaviour
+public class FishBehaviour : MonoBehaviour
 {
 	public Sprite Sprite => fishSO.Sprite;
 	

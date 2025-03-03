@@ -8,7 +8,7 @@ public class Player : MonoBehaviour
 	
 	private float _currentWeight;
 
-	public void AddFish(FishBehavior fish)
+	public void AddFish(FishBehaviour fish)
 	{
 		_currentWeight += fish.Weight;
 		
