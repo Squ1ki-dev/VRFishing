@@ -1,163 +1,158 @@
-using System.Collections;
-using System.Collections.Generic;
+using System;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.XR;
+using UnityEngine.Events;
+using UnityEngine.Serialization;
+using Code.Services.Input;
 
-public class Bait : MonoBehaviour
+namespace Code.Gameplay.Inventory
 {
-    public bool IsInWater { get; private set; }
-    private bool _isHolding;
-    private bool _isPulling;
-    private float _holdStartTime;
-
-    [Header("Events")]
-    [SerializeField] private ParticleSystem splashEffect;
-    [SerializeField] private ParticleSystem pullingEffect;
-
-    [Header("Settings")]
-    [SerializeField] private Transform targetPoint;
-    [SerializeField, Min(0)] private float moveSpeed;
-    [SerializeField] private float yUnderWaterOffset;
-    [SerializeField] private float maxThrowPower;
-    [SerializeField] private float minThrowPower;
-    [SerializeField] private float angleInfluence;
-
-    private Rigidbody _rigidbody;
-    private Transform _defaultParent;
-    
-    private Vector3 _defaultPosition;
-    private Vector3 _lastVelocity;
-    private Vector3 _lastAngularVelocity;
-    
-    private InputDevice _rightController;
-
-    private void Awake() => _rigidbody = GetComponent<Rigidbody>();
-
-    private void Start()
+    public class Bait : MonoBehaviour
     {
-        _defaultParent = transform.parent;
-        _defaultPosition = transform.localPosition;
-        Init();
-        InitializeInputDevice();
-    }
+        public bool IsInWater { get; private set; }
 
-    private void Update()
-    {
-        if (!_rightController.isValid)
-            InitializeInputDevice();
+        [Header("Events")]
+        [SerializeField] private UnityEvent onBaitEnteredWater;
+        [SerializeField] private UnityEvent<Transform> onFishBite;
 
-        if (_rightController.TryGetFeatureValue(CommonUsages.triggerButton, out bool gripPressed))
+        [Header("Effects")]
+        [SerializeField] private ParticleSystem splashEffect;
+        [SerializeField] private ParticleSystem pullingEffect;
+
+        [Header("Settings")]
+        [SerializeField] private Transform targetPoint;
+        [SerializeField, Min(0)] private float moveSpeed = 2f;
+        [SerializeField] private float yUnderWaterOffset = 0.2f;
+        [SerializeField] private float maxThrowPower = 10f;
+        [SerializeField] private float minThrowPower = 2f;
+        [SerializeField] private float angleInfluence = 0.5f;
+
+        private Rigidbody _rigidbody;
+        private Transform _defaultParent;
+        private Vector3 _defaultPosition;
+        private Vector3 _lastVelocity;
+        private IInputHandler _inputHandler;
+
+        private bool _isHolding;
+        private bool _isPulling;
+        private float _holdStartTime;
+
+        private void Awake()
         {
-            if (gripPressed && !_isHolding)
+            _rigidbody = GetComponent<Rigidbody>();
+            _inputHandler = new InputHandler();
+        }
+
+        private void Start()
+        {
+            CacheDefaults();
+            _inputHandler.InitializeInputDevice();
+        }
+
+        private void Update()
+        {
+            _inputHandler.ValidateInputDevice();
+
+            if (_inputHandler.IsTriggerPressed())
                 StartHolding();
-            else if (!gripPressed && _isHolding)
+            else if (_isHolding)
                 ThrowBait();
         }
-    }
 
-    private void FixedUpdate()
-    {
-        if (_isPulling)
-            MoveToTarget();
-
-        if (_isHolding)
+        private void FixedUpdate()
         {
-            _rightController.TryGetFeatureValue(CommonUsages.deviceVelocity, out _lastVelocity);
-            _rightController.TryGetFeatureValue(CommonUsages.deviceAngularVelocity, out _lastAngularVelocity);
+            if (_isPulling)
+                MoveToTarget();
+            else if (_isHolding)
+                CaptureControllerVelocity();
+            else
+                ApplyAirResistance();
         }
 
-        if (!_isHolding && !_isPulling)
-            ApplyAirResistance();
-    }
+        private void ApplyAirResistance() => _rigidbody.velocity *= 0.99f;
 
-    private void ApplyAirResistance() => _rigidbody.velocity *= 0.99f;
+        private void StartHolding()
+        {
+            if (_isHolding) return;
 
-    private void StartHolding()
-    {
-        _isHolding = true;
-        transform.SetParent(null);
-        _holdStartTime = Time.time;
-    }
+            _isHolding = true;
+            transform.SetParent(null);
+            _holdStartTime = Time.time;
+        }
 
-    private void ThrowBait()
-    {
-        _isHolding = false;
-        _rigidbody.isKinematic = false;
+        private void ThrowBait()
+        {
+            _isHolding = false;
+            _rigidbody.isKinematic = false;
+            _rigidbody.velocity = CalculateThrowDirection() * CalculateThrowPower();
+            WaitForFish().Forget();
+        }
 
-        // Use the controller's velocity magnitude to determine throw power
-        float throwPower = Mathf.Clamp(_lastVelocity.magnitude * 2f, minThrowPower, maxThrowPower);
-        
-        Vector3 throwDirection = CalculateThrowDirection();
-        _rigidbody.velocity = throwDirection * throwPower;
+        private float CalculateThrowPower() =>
+            Mathf.Clamp(_lastVelocity.magnitude * 2f, minThrowPower, maxThrowPower);
 
-        StartCoroutine(WaitForFish());
-    }
+        private Vector3 CalculateThrowDirection()
+        {
+            Vector3 controllerForward = _inputHandler.GetControllerForward();
+            return Vector3.Lerp(_lastVelocity.normalized, controllerForward, angleInfluence).normalized;
+        }
 
-    private Vector3 CalculateThrowDirection()
-    {
-        // Get controller forward direction
-        Vector3 controllerForward = _rightController.TryGetFeatureValue(CommonUsages.deviceRotation, out Quaternion controllerRotation) 
-            ? controllerRotation * Vector3.forward 
-            : Vector3.forward;
+        private void CaptureControllerVelocity() =>
+            _lastVelocity = _inputHandler.GetControllerVelocity();
 
-        // Blend between actual velocity and controller's forward direction for a more natural throw
-        Vector3 throwDirection = Vector3.Lerp(_lastVelocity.normalized, controllerForward, 0.5f).normalized;
-        
-        return throwDirection;
-    }
+        public void ResetBait()
+        {
+            _isPulling = false;
+            IsInWater = false;
+            _rigidbody.isKinematic = true;
+            pullingEffect.Stop();
+            RestoreDefaultTransformAfterDelay().Forget();
+        }
 
-    public void Init()
-    {
-        _isPulling = false;
-        IsInWater = false;
-        _rigidbody.isKinematic = true;
-        pullingEffect.Stop();
+        private async UniTaskVoid RestoreDefaultTransformAfterDelay()
+        {
+            await UniTask.Delay(1000);
+            RestoreDefaultTransform();
+        }
 
-        Invoke(nameof(DelayedParentAndPosition), 1f);
-    }
+        private void RestoreDefaultTransform()
+        {
+            transform.SetParent(_defaultParent);
+            transform.localPosition = _defaultPosition;
+        }
 
-    private void DelayedParentAndPosition()
-    {
-        transform.parent = _defaultParent;
-        transform.localPosition = _defaultPosition;
-    }
+        private void MoveToTarget() =>
+            transform.position = Vector3.MoveTowards(transform.position, targetPoint.position, moveSpeed * Time.fixedDeltaTime);
 
-    private void MoveToTarget() => transform.position = Vector3.MoveTowards(transform.position, targetPoint.position, moveSpeed * Time.fixedDeltaTime);
+        private async UniTaskVoid WaitForFish()
+        {
+            await UniTask.Delay(UnityEngine.Random.Range(5000, 10000));
+            splashEffect.Play();
+            onFishBite?.Invoke(transform);
+        }
 
-    private IEnumerator WaitForFish()
-    {
-        yield return new WaitForSeconds(Random.Range(5f, 10f));
-        splashEffect.Play();
-    }
+        private void OnTriggerEnter(Collider other)
+        {
+            if (other.TryGetComponent(out LowPolyWater.LowPolyWater _))
+                EnterWater();
+        }
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (!other.TryGetComponent(out LowPolyWater.LowPolyWater water))
-            return;
+        private void EnterWater()
+        {
+            _rigidbody.isKinematic = true;
+            AdjustPositionForWater();
+            splashEffect.Play();
+            onBaitEnteredWater?.Invoke();
+        }
 
-        WaterImmersion();
-    }
+        private void AdjustPositionForWater() =>
+            transform.position += Vector3.down * yUnderWaterOffset;
 
-    private void WaterImmersion()
-    {
-        _rigidbody.isKinematic = true;
-        SetYOffset();
-        splashEffect.Play();
-    }
-
-    private void SetYOffset()
-    {
-        Vector3 currentPosition = transform.position;
-        currentPosition.y -= yUnderWaterOffset;
-        transform.position = currentPosition;
-    }
-
-    private void InitializeInputDevice()
-    {
-        var devices = new List<InputDevice>();
-        InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.Right | InputDeviceCharacteristics.Controller, devices);
-
-        if (devices.Count > 0)
-            _rightController = devices[0];
+        private void CacheDefaults()
+        {
+            _defaultParent = transform.parent;
+            _defaultPosition = transform.localPosition;
+            ResetBait();
+        }
     }
 }

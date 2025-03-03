@@ -13,9 +13,6 @@ public class FishSO : ScriptableObject
 	[Header("Weight in KG")]
 	[SerializeField, Range(0f, 100f)] private float minWeight;
 	[SerializeField, Range(0f, 100f)] private float maxWeight;
-	
-	public float GetRandomWeight()
-	{
-		return MathF.Round(Random.Range(minWeight, maxWeight), 2);
-	}
+
+    public float GetRandomWeight() => MathF.Round(Random.Range(minWeight, maxWeight), 2);
 }

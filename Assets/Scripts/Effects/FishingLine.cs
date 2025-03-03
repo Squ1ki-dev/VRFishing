@@ -6,12 +6,9 @@ public class FishingLine : MonoBehaviour
 
 	private LineRenderer _lineRenderer;
 
-	private void Awake()
-	{
-		_lineRenderer = GetComponent<LineRenderer>();
-	}
+    private void Awake() => _lineRenderer = GetComponent<LineRenderer>();
 
-	private void Update()
+    private void Update()
 	{
 		if (_lineRenderer == null || endPoint == null) return;
 

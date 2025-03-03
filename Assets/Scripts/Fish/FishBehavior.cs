@@ -13,12 +13,9 @@ public class FishBehavior : MonoBehaviour
 	[Header("Settings")] 
 	[SerializeField] private FishSO fishSO;
 
-	private void Start()
-	{
-		Init();
-	}
+    private void Start() => Init();
 
-	public void Catch(Transform bait)
+    public void Catch(Transform bait)
 	{
 		transform.parent = bait;
 		transform.localPosition = Vector3.zero;
